@@ -3,7 +3,10 @@ from mininet.net import Mininet
 from mininet.node import OVSKernelSwitch, RemoteController
 from mininet.cli import CLI
 from mininet.link import TCLink
-from mininet.log import setLogLevel
+from mininet.log import setLogLevel, info
+
+from subprocess import Popen
+
 
 
 class Topology(Topo):
@@ -88,6 +91,11 @@ class Topology(Topo):
 topos = {"topology": (lambda: Topology())}
 
 if __name__ == "__main__":
+
+    info('*** Clean net\n')
+    cmd = "mn -c"
+    Popen(cmd, shell=True).wait()
+
     topo = Topology()
     net = Mininet(
         topo=topo,
@@ -98,7 +106,7 @@ if __name__ == "__main__":
         link=TCLink,
     )
     setLogLevel( 'info' )
-    controller = RemoteController("c1", ip="128.0.0.0", port=6633) #ifconfig - copy and past ip
+    controller = RemoteController("c1", ip="0.0.0.0", port=6633) #ifconfig - copy and past ip
     net.addController(controller)
     net.build()
     net.start()
