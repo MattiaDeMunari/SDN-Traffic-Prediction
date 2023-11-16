@@ -5,98 +5,63 @@ from mininet.cli import CLI
 from mininet.link import TCLink
 from mininet.log import setLogLevel, info
 
+
 from subprocess import Popen
 
+import time
+import random
 
 
-class Topology(Topo):
-    def __init__(self):
+class arbitrary_topology(Topo):
+    def build(self, total_switches, max_hosts_per_switch, interconnectivity, seed=0):
+        global host_count
+        random.seed(seed)
 
-        # Initialize topology
-        Topo.__init__(self)
+        host_count =0 
+        #create all the switces and hosts
+        for i in range(total_switches):
+            switch_dpid = f"s{i+1}"
+            self.addSwitch(switch_dpid, stp=True, failMode='standalone')
+            #for each switch create and connect all the hosts
+            for j in range(random.randrange(max_hosts_per_switch)):
+                host_dpid = f"h{host_count+1}"
+                self.addHost(host_dpid)
+                self.addLink(switch_dpid, host_dpid)
+                host_count +=1
+        
+        # add connections between switches
+        for i in range(total_switches):
+            for j in range(total_switches):
+                # you can't connect to yourself 
+                if j == i:
+                    continue
 
-        # Create template host, switch, and link
-        host_config = dict(inNamespace=True)
-        http_link_config = dict(bw=1)
-        host_link_config = dict()
-
-        s1 = self.addSwitch( 's1', cls=OVSKernelSwitch, protocols='OpenFlow13' )
-
-        h1 = self.addHost( 'h1', cpu=1.0/20,mac="00:00:00:00:00:01", ip="10.0.0.1/24" )
-        h2 = self.addHost( 'h2', cpu=1.0/20, mac="00:00:00:00:00:02", ip="10.0.0.2/24" )
-        h3 = self.addHost( 'h3', cpu=1.0/20, mac="00:00:00:00:00:03", ip="10.0.0.3/24" )    
-
-        s2 = self.addSwitch( 's2', cls=OVSKernelSwitch, protocols='OpenFlow13' )
-
-        h4 = self.addHost( 'h4', cpu=1.0/20, mac="00:00:00:00:00:04", ip="10.0.0.4/24" )
-        h5 = self.addHost( 'h5', cpu=1.0/20, mac="00:00:00:00:00:05", ip="10.0.0.5/24" )
-        h6 = self.addHost( 'h6', cpu=1.0/20, mac="00:00:00:00:00:06", ip="10.0.0.6/24" )
-
-        s3 = self.addSwitch( 's3', cls=OVSKernelSwitch, protocols='OpenFlow13' )
-
-        h7 = self.addHost( 'h7', cpu=1.0/20, mac="00:00:00:00:00:07", ip="10.0.0.7/24" )
-        h8 = self.addHost( 'h8', cpu=1.0/20, mac="00:00:00:00:00:08", ip="10.0.0.8/24" )
-        h9 = self.addHost( 'h9', cpu=1.0/20, mac="00:00:00:00:00:09", ip="10.0.0.9/24" )
-
-        s4 = self.addSwitch( 's4', cls=OVSKernelSwitch, protocols='OpenFlow13' )
-
-        h10 = self.addHost( 'h10', cpu=1.0/20, mac="00:00:00:00:00:10", ip="10.0.0.10/24" )
-        h11 = self.addHost( 'h11', cpu=1.0/20, mac="00:00:00:00:00:11", ip="10.0.0.11/24" )
-        h12 = self.addHost( 'h12', cpu=1.0/20, mac="00:00:00:00:00:12", ip="10.0.0.12/24" )
-
-        s5 = self.addSwitch( 's5', cls=OVSKernelSwitch, protocols='OpenFlow13' )
-
-        h13 = self.addHost( 'h13', cpu=1.0/20, mac="00:00:00:00:00:13", ip="10.0.0.13/24" )
-        h14 = self.addHost( 'h14', cpu=1.0/20, mac="00:00:00:00:00:14", ip="10.0.0.14/24" )
-        h15 = self.addHost( 'h15', cpu=1.0/20, mac="00:00:00:00:00:15", ip="10.0.0.15/24" )
-
-        s6 = self.addSwitch( 's6', cls=OVSKernelSwitch, protocols='OpenFlow13' )
-
-        h16 = self.addHost( 'h16', cpu=1.0/20, mac="00:00:00:00:00:16", ip="10.0.0.16/24" )
-        h17 = self.addHost( 'h17', cpu=1.0/20, mac="00:00:00:00:00:17", ip="10.0.0.17/24" )
-        h18 = self.addHost( 'h18', cpu=1.0/20, mac="00:00:00:00:00:18", ip="10.0.0.18/24" )
-
-        # Add links
-        self.addLink( h1, s1 )
-        self.addLink( h2, s1 )
-        self.addLink( h3, s1 )
-
-        self.addLink( h4, s2 )
-        self.addLink( h5, s2 )
-        self.addLink( h6, s2 )
-
-        self.addLink( h7, s3 )
-        self.addLink( h8, s3 )
-        self.addLink( h9, s3 )
-
-        self.addLink( h10, s4 )
-        self.addLink( h11, s4 )
-        self.addLink( h12, s4 )
-
-        self.addLink( h13, s5 )
-        self.addLink( h14, s5 )
-        self.addLink( h15, s5 )
-
-        self.addLink( h16, s6 )
-        self.addLink( h17, s6 )
-        self.addLink( h18, s6 )
-
-        self.addLink( s1, s2 )
-        self.addLink( s2, s3 )
-        self.addLink( s3, s4 )
-        self.addLink( s4, s5 )
-        self.addLink( s5, s6 )
+                # j == i+1 ensures a line topology connection through all the hosts
+                # we then use the interconnectivity percentage to add extra links in a random way
+                if j == i+1 or random.random() < interconnectivity:
+                    switch1_dpid = f"s{i+1}"
+                    switch2_dpid = f"s{j+1}"
+                    try:
+                        #check if reverse link already exists
+                        #garbage hack but it works
+                        self.linkInfo(switch2_dpid,switch1_dpid)
+                        print(f"Link {switch1_dpid} <-> {switch2_dpid} Already exists")
+                    except:
+                        self.addLink(switch1_dpid, switch2_dpid)
 
 
-topos = {"topology": (lambda: Topology())}
 
 if __name__ == "__main__":
-
     info('*** Clean net\n')
     cmd = "mn -c"
     Popen(cmd, shell=True).wait()
+    
+    idle_percent = .05
+    NUM_ITERATIONS = 512
+    topo = arbitrary_topology(5,3,.3,0)
 
-    topo = Topology()
+    setLogLevel( 'info' )
+    controller = RemoteController("c0", ip="0.0.0.0", port=6633) #ifconfig - copy and past ip
     net = Mininet(
         topo=topo,
         switch=OVSKernelSwitch,
@@ -104,11 +69,50 @@ if __name__ == "__main__":
         autoSetMacs=True,
         autoStaticArp=True,
         link=TCLink,
+        controller=controller
     )
-    setLogLevel( 'info' )
-    controller = RemoteController("c1", ip="0.0.0.0", port=6633) #ifconfig - copy and past ip
-    net.addController(controller)
-    net.build()
+
+    net.build()     
     net.start()
+
+
+    print("\n\n--------------------------------------------------------------------------------")    
+    print("Network built, waiting for STP to configure itself\n\n")    
+
+
+    s1 = net.get("s1")
+    while(s1.cmdPrint('ovs-ofctl show s1 | grep -o FORWARD | head -n1') != "FORWARD\r\n"):
+        time.sleep(3)
+    print("\n\n--------------------------------------------------------------------------------")    
+    print("STP ok, testing ping connectivity\n\n")    
+
+    net.pingAll()
+
+    print("\n\n--------------------------------------------------------------------------------")    
+    print("Begin traffic generation\n\n")    
+
+    hs = [net.get(f"h{host+1}") for host in range(host_count)]
+    
+    
+    hs[0].cmd('python2 -m SimpleHTTPServer 80 &')
+
+    random.seed(0)
+
+    for i in range (NUM_ITERATIONS):
+        for j,h in enumerate(hs):
+            if random.random() < idle_percent:
+                continue
+            print("aaa")
+            actions = [ lambda: h.cmd(f"iperf -p 5050 -c {random.choice(hs).IP}"),     #iperf random host
+                        lambda: h.cmd(f"iperf -p 5050 -c {hs[(i+1)%host_count].IP}"),  #iperf specifc host
+                        lambda: h.cmd(f"iperf -p 5050 -u -c {random.choice(hs).IP}"),  #iperf random host UDP
+                        lambda: h.cmd(f"wget  http://{hs[0].IP}"),                     #http request
+                        lambda: h.cmd(f"wget  http://{hs[0].IP}/test.zip")]            #http download file
+
+            random.choice(actions)()
+
+    
+
+
     CLI(net)
     net.stop()
