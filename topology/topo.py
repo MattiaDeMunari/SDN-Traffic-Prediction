@@ -21,7 +21,7 @@ class arbitrary_topology(Topo):
         #create all the switces and hosts
         for i in range(total_switches):
             switch_dpid = f"s{i+1}"
-            self.addSwitch(switch_dpid, stp=True, failMode='standalone')
+            self.addSwitch(switch_dpid, stp=True, failMode='standalone')    #stp to avoid loops in the networks 
             #for each switch create and connect all the hosts
             for j in range(random.randrange(max_hosts_per_switch)):
                 host_dpid = f"h{host_count+1}"
@@ -53,16 +53,16 @@ class arbitrary_topology(Topo):
 
 if __name__ == "__main__":
     info('*** Clean net\n')
-    cmd = "mn -c"
+    cmd = "mn -c"                      #run sudo mn -c to clear mininet
     Popen(cmd, shell=True).wait()
     
     idle_percent = .05
     NUM_ITERATIONS = 512
-    topo = arbitrary_topology(5,3,.3,0)
+    topo = arbitrary_topology(5,3,.3,0)     #crete a network with 5 switches, each with 0-3 hosts and a 30% chance of having cross connections
 
     setLogLevel( 'info' )
-    controller = RemoteController("c0", ip="0.0.0.0", port=6633) #ifconfig - copy and past ip
-    net = Mininet(
+    controller = RemoteController("c0", ip="0.0.0.0", port=6633) 
+    net = Mininet(                                                #configure miniset, autoatically set mac and ip addresses 
         topo=topo,
         switch=OVSKernelSwitch,
         build=False,
@@ -80,9 +80,10 @@ if __name__ == "__main__":
     print("Network built, waiting for STP to configure itself\n\n")    
 
 
-    s1 = net.get("s1")
-    while(s1.cmdPrint('ovs-ofctl show s1 | grep -o FORWARD | head -n1') != "FORWARD\r\n"):
+    s1 = net.get("s1")   #check he state stp, we wait until s1 says "forward" which indicates it is complete
+    while(s1.cmdPrint('ovs-ofctl show s1 | grep -o FORWARD | head -n1') != "FORWARD\r\n"): 
         time.sleep(3)
+    time.sleep(5)
     print("\n\n--------------------------------------------------------------------------------")    
     print("STP ok, testing ping connectivity\n\n")    
 
@@ -90,29 +91,38 @@ if __name__ == "__main__":
 
     print("\n\n--------------------------------------------------------------------------------")    
     print("Begin traffic generation\n\n")    
-
-    hs = [net.get(f"h{host+1}") for host in range(host_count)]
     
     
-    hs[0].cmd('python2 -m SimpleHTTPServer 80 &')
-
     random.seed(0)
 
-    for i in range (NUM_ITERATIONS):
-        for j,h in enumerate(hs):
-            if random.random() < idle_percent:
-                continue
-            print("aaa")
-            actions = [ lambda: h.cmd(f"iperf -p 5050 -c {random.choice(hs).IP}"),     #iperf random host
-                        lambda: h.cmd(f"iperf -p 5050 -c {hs[(i+1)%host_count].IP}"),  #iperf specifc host
-                        lambda: h.cmd(f"iperf -p 5050 -u -c {random.choice(hs).IP}"),  #iperf random host UDP
-                        lambda: h.cmd(f"wget  http://{hs[0].IP}"),                     #http request
-                        lambda: h.cmd(f"wget  http://{hs[0].IP}/test.zip")]            #http download file
+    #gather hosts in an easy-to-access array
+    hs = [net.get(f"h{host+1}") for host in range(host_count)]
+    
+    #start a http server on host h1
+    http_server = random.choice(hs)
+    http_server.cmd('python2 -m SimpleHTTPServer 80 &')
 
-            random.choice(actions)()
+    iperf_TCP_server = random.choice(hs)
+    iperf_TCP_server.cmd('iperf -s -p 5050 &') 
+    
+    iperf_UDP_server = random.choice(hs)
+    iperf_UDP_server.cmd('iperf -s -u -p 5051 &')
+
+
+
+    end_time = time.time() + 30  
+    while time.time() < end_time:  #do this for 30 seconds
+        for j,h in enumerate(hs):
+            if random.random() < idle_percent:  #sometimes the client doesn't do anything
+                continue
+            actions = [ lambda: h.cmd(f"iperf -p 5050 -t 1 -c {iperf_TCP_server.IP()}"),      #iperf server TCP
+                        lambda: h.cmd(f"iperf -p 5051 -t 1 -u -c {iperf_UDP_server.IP()}"),   #iperf random host UDP 
+                        lambda: h.cmd(f"wget  http://{http_server.IP()} -O /dev/null"),                     #http request
+                        lambda: h.cmd(f"wget  http://{http_server.IP()}/test.zip -O /dev/null")]            #http download file
+            random.choice(actions)() #call a random action 
 
     
 
 
-    CLI(net)
+    CLI(net)    #once done open the minent Command Line Interface for testing before exiting
     net.stop()
