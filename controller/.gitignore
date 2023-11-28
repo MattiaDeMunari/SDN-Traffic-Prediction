@@ -12,3 +12,6 @@ __pycache__/
 *.pyc
 *.pyo
 *.pyd
+
+#file FlowStats
+FlowStatsfile.csv
