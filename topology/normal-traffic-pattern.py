@@ -92,7 +92,7 @@ def startNetwork():
     #net = Mininet( topo=topo, host=CPULimitedHost, link=TCLink, controller=None )
     #net.addController( 'c0', controller=RemoteController, ip='192.168.43.55', port=6653 )
 
-    c0 = RemoteController('c0', ip='192.168.0.101', port=6653)
+    c0 = RemoteController('c0', ip='192.168.64.18', port=6653)
     net = Mininet(topo=topo, link=TCLink, controller=c0)
 
     net.start()
