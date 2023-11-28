@@ -5,12 +5,10 @@ from mininet.cli import CLI
 from mininet.link import TCLink
 from mininet.log import setLogLevel, info
 
-
 from subprocess import Popen
 
 import time
 import random
-
 
 class arbitrary_topology(Topo):
     def build(self, total_switches, max_hosts_per_switch, interconnectivity, seed=0):
