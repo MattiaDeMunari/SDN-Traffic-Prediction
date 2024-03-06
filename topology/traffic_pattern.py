@@ -5,7 +5,7 @@ from mininet.cli import CLI
 from mininet.link import TCLink
 from mininet.log import setLogLevel, info
 
-from subprocess import Popen
+from subprocess import Popen, DEVNULL, STDOUT
 
 import time
 import random
@@ -59,23 +59,22 @@ class arbitrary_topology(Topo):
                     connected_pairs.add((i, j))  # Add the connected pair to the set
                     self.addLink(f"s{i}", f"s{j}")
 
-
 if __name__ == "__main__":
 
-    #clean mininet istances
+    #clean mininet istances without print stdout
     info('*** Clean net\n')
-    Popen("mn -c", shell=True).wait()
+    Popen("mn -c", shell=True, stdout=DEVNULL, stderr=STDOUT).wait()
 
     #topology creation
     topo = arbitrary_topology(SWITCHES,HOSTS,CROSS_CONNECTION,0)
 
-    #Logging
+    #logging
     setLogLevel('info')
 
-    #Controller
+    #controller
     controller = RemoteController("c0", ip="0.0.0.0", port=6633) 
     
-    #Mininet set-up (mac and ip auto-set)
+    #mininet set-up (mac and ip auto-set)
     net = Mininet(                                                
         topo=topo,
         switch=OVSKernelSwitch,
@@ -89,8 +88,9 @@ if __name__ == "__main__":
     net.build()     
     net.start()
 
-    CLI(net)    #once done open the minent Command Line Interface for testing before exiting
-    net.stop()
+    #once done open the minent CLI for testing before exiting
+    #TODO: remove this and run automatically the script
+    CLI(net)
 
     print("\n\n--------------------------------------------------------------------------------")    
     print("Network built, waiting for STP to configure itself\n\n")    
@@ -109,10 +109,8 @@ if __name__ == "__main__":
     
     random.seed(0)
 
-
     #Hosts array
     hs = [net.get(f"h{host}") for host in range(1,host_count+1)]
-
 
     #Start a HTTP server on Host h1
     http_server = random.choice(hs)
@@ -136,9 +134,6 @@ if __name__ == "__main__":
                         lambda: h.cmd(f"wget  http://{http_server.IP()} -O /dev/null"),                     #http request
                         lambda: h.cmd(f"wget  http://{http_server.IP()}/test.zip -O /dev/null")]            #http download file
             random.choice(actions)() #call a random action 
-
-    
-
 
     CLI(net)    #once done open the minent Command Line Interface for testing before exiting
     net.stop()
