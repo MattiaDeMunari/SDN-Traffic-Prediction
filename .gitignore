@@ -13,5 +13,7 @@ __pycache__/
 *.pyo
 *.pyd
 
+*.pcap
+
 #file FlowStats
 FlowStatsfile.csv

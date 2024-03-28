@@ -9,6 +9,8 @@ from subprocess import Popen, DEVNULL, STDOUT
 
 import time
 import random
+import os
+
 
 # ---------------------------------------------------------------- #
 # -------------------------- Parameters -------------------------- #
@@ -17,7 +19,8 @@ SWITCHES = 5
 HOSTS = 3
 CROSS_CONNECTION = .30 #30% chance of having cross connections
 IDLE_PERCENT = .05 #probability of a host remaining idle
-TEST_TIME = 30 #test time in seconds
+TEST_TIME = 5 #test time in seconds
+folder_path = "captures"  #folder to temporarily store the .pcap captures in 
 
 class arbitrary_topology(Topo):
     def build(self, total_switches, max_hosts_per_switch, interconnectivity, seed=0):
@@ -88,9 +91,6 @@ if __name__ == "__main__":
     net.build()     
     net.start()
 
-    #once done open the minent CLI for testing before exiting
-    #TODO: remove this and run automatically the script
-    CLI(net)
 
     print("\n\n--------------------------------------------------------------------------------")    
     print("Network built, waiting for STP to configure itself\n\n")    
@@ -98,35 +98,49 @@ if __name__ == "__main__":
     s1 = net.get("s1")   #check he state stp, we wait until s1 says "forward" which indicates it is complete
     while(s1.cmdPrint('ovs-ofctl show s1 | grep -o FORWARD | head -n1') != "FORWARD\r\n"): 
         time.sleep(3)
+    print("STP ok, waiting 5 seconds...")
     time.sleep(5)
     print("\n\n--------------------------------------------------------------------------------")    
-    print("STP ok, testing ping connectivity\n\n")    
+    print("Testing ping connectivity\n\n")    
 
     net.pingAll()
+    
+    
+    
+    print("\n\n--------------------------------------------------------------------------------")    
+    print("Begin traffic capturing\n\n")    
+    
+    
+    if os.path.exists(folder_path):     #delete folder and contents from previous session
+        os.rmdir(folder_path)
+    os.mkdir(folder_path)
+    
+    
+    for h in net.hosts:                 #run tcpdump to capture all packets coming from every host
+        h.cmd(f"sudo tcpdump -w  {folder_path}/{h.name}_capture.pcap &")
+        
 
     print("\n\n--------------------------------------------------------------------------------")    
     print("Begin traffic generation\n\n")    
     
     random.seed(0)
 
-    #Hosts array
-    hs = [net.get(f"h{host}") for host in range(1,host_count+1)]
 
     #Start a HTTP server on Host h1
-    http_server = random.choice(hs)
+    http_server = random.choice(net.hosts)
     http_server.cmd('python2 -m SimpleHTTPServer 80 &')
 
     #Start iperf (TCP and UDP) server on Random Hosts
-    iperf_TCP_server = random.choice(hs)
+    iperf_TCP_server = random.choice(net.hosts)
     iperf_TCP_server.cmd('iperf -s -p 5050 &') 
     
-    iperf_UDP_server = random.choice(hs)
-    iperf_UDP_server.cmd('iperf -s -u -p 5051 &')
-
-
+    iperf_UDP_server = random.choice(net.hosts)
+    iperf_UDP_server.cmd('iperf -s -u -p 5051 &')    
+ 
+        
     end_time = time.time() + TEST_TIME  
     while time.time() < end_time:  #do this for 30 seconds
-        for h in hs:
+        for h in net.hosts:
             if random.random() < IDLE_PERCENT:  #sometimes the client doesn't do anything
                 continue
             actions = [ lambda: h.cmd(f"iperf -p 5050 -t 1 -c {iperf_TCP_server.IP()}"),      #iperf server TCP
