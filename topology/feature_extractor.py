@@ -1,6 +1,8 @@
 from scapy.all import PcapReader, IP, TCP, UDP, ICMP
 import os 
 import pandas as pd
+from prophet import Prophet
+import matplotlib.pyplot as plt 
 
 
 folder_path = "captures"
@@ -13,38 +15,37 @@ data = []
 for file in files:
     print(file)
     packets = PcapReader(folder_path+'/'+file)
-    hostname=file.split('_')[0]
-    
+    switch_name=file.split('-')[0]
+
     for packet in packets:
-        
-        protocol = packet.name
-        
-        if IP in packet:  # Ensure the packet has an IP layer
-            if TCP in packet:
-                protocol = "TCP"
-            elif UDP in packet:
-                protocol = "UDP"
-            elif ICMP in packet:
-                protocol = "ICMP"
-            else:
-                protocol = "IP"
-            
         data.append({
-            
-            'Time' :          packet.time,
-            'Hostname':       hostname,
-            'Source IP':      packet['IP'].src if 'IP' in packet else None,
-            'Destination IP': packet['IP'].dst if 'IP' in packet else None,
-            'Protocol':       protocol,
-            'Length': len(packet),
+            'ds'    : pd.to_datetime(float(packet.time), unit='s'),
+            'Switch': switch_name,
+            'y': len(packet),
         })
 
+
+
+
 df = pd.DataFrame(data)
-df = df.sort_values(by='Time', ascending=True)  #sort by time
-df.reset_index(drop=True, inplace=True)
 
-start_time = df['Time'][0]
-df['Time'] = df['Time'] -  start_time #time offset so it's 0 and not unix time
+grouped = df.groupby('Switch')
+
+for name, group in grouped:
+    group = group.sort_values(by='ds')
+    group = group.resample('1S',on='ds').sum(numeric_only=True).fillna(0)       #take the total bandwidth every second for each switch
+    group = group.reset_index()
+    
+    print("Fitting model", name)
+    model = Prophet()
+    model.fit(group)
+    print("Model fit")
+    future = model.make_future_dataframe(periods=3,freq='S',include_history=True) 
+    
+    forecast = model.predict(future)
+    print(forecast)
+    model.plot(forecast)
+    plt.show()
 
 
-df.to_csv(output_csv_path, index=True)  
+

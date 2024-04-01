@@ -5,9 +5,10 @@ from mininet.cli import CLI
 from mininet.link import TCLink
 from mininet.log import setLogLevel, info
 
-from subprocess import Popen, DEVNULL, STDOUT
+from subprocess import *
 
 import time
+import re
 import random
 import os
 
@@ -15,11 +16,16 @@ import os
 # ---------------------------------------------------------------- #
 # -------------------------- Parameters -------------------------- #
 # ---------------------------------------------------------------- #
+
 SWITCHES = 5
 HOSTS = 3
-CROSS_CONNECTION = .30 #30% chance of having cross connections
-IDLE_PERCENT = .05 #probability of a host remaining idle
-TEST_TIME = 5 #test time in seconds
+CROSS_CONNECTION = .30    #30% chance of having cross connections
+
+
+IDLE_PERCENT = .2         #probability of a host remaining idle
+TEST_TIME = 30            #test time in seconds
+IPERF_TIME_TCP = 2
+IPERF_TIME_UDP = 0.2
 folder_path = "captures"  #folder to temporarily store the .pcap captures in 
 
 class arbitrary_topology(Topo):
@@ -100,26 +106,33 @@ if __name__ == "__main__":
         time.sleep(3)
     print("STP ok, waiting 5 seconds...")
     time.sleep(5)
+    
     print("\n\n--------------------------------------------------------------------------------")    
     print("Testing ping connectivity\n\n")    
 
     net.pingAll()
-    
-    
+    time.sleep(1)
     
     print("\n\n--------------------------------------------------------------------------------")    
     print("Begin traffic capturing\n\n")    
     
+    #empty folder 
+    Popen(f"rm -rf {folder_path}", shell=True, stdout=DEVNULL, stderr=STDOUT).wait()
+    os.mkdir(folder_path)   
     
-    if os.path.exists(folder_path):     #delete folder and contents from previous session
-        os.rmdir(folder_path)
-    os.mkdir(folder_path)
+    output = check_output(['ifconfig', '-a']).decode('utf-8')
     
+    pattern = r's[0-9]+-eth[0-9]+'
     
-    for h in net.hosts:                 #run tcpdump to capture all packets coming from every host
-        h.cmd(f"sudo tcpdump -w  {folder_path}/{h.name}_capture.pcap &")
+    # Find all matching interface names for every switch and port
+    interface_names = re.findall(pattern, output)
+    
+    for i in interface_names:                 #run tcpdump to capture all packets coming from every host
+        Popen([f"tcpdump","-i", i, "-w", f"{folder_path}/{i}_capture.pcap"])
         
 
+    time.sleep(2)
+    
     print("\n\n--------------------------------------------------------------------------------")    
     print("Begin traffic generation\n\n")    
     
@@ -136,18 +149,17 @@ if __name__ == "__main__":
     
     iperf_UDP_server = random.choice(net.hosts)
     iperf_UDP_server.cmd('iperf -s -u -p 5051 &')    
- 
-        
-    end_time = time.time() + TEST_TIME  
-    while time.time() < end_time:  #do this for 30 seconds
-        for h in net.hosts:
-            if random.random() < IDLE_PERCENT:  #sometimes the client doesn't do anything
-                continue
-            actions = [ lambda: h.cmd(f"iperf -p 5050 -t 1 -c {iperf_TCP_server.IP()}"),      #iperf server TCP
-                        lambda: h.cmd(f"iperf -p 5051 -t 1 -u -c {iperf_UDP_server.IP()}"),   #iperf random host UDP 
-                        lambda: h.cmd(f"wget  http://{http_server.IP()} -O /dev/null"),                     #http request
-                        lambda: h.cmd(f"wget  http://{http_server.IP()}/test.zip -O /dev/null")]            #http download file
-            random.choice(actions)() #call a random action 
+    
+    
+    actions = [ f"iperf -p 5050 -t {IPERF_TIME_TCP} -c -b 200k {iperf_TCP_server.IP()}",     #iperf server TCP
+                f"iperf -p 5051 -t {IPERF_TIME_UDP} -u -c -b 300k {iperf_UDP_server.IP()}",  #iperf random host UDP 
+                f"wget  http://{http_server.IP()} -O /dev/null",                     #http request
+                f"wget  http://{http_server.IP()}/test.zip -O /dev/null"]            #http download file
+    
+    for h in net.hosts:        
+        action = random.choice(actions)
+        h.cmd(f"while true; {action}; done")
+    time.sleep(TEST_TIME)
 
     CLI(net)    #once done open the minent Command Line Interface for testing before exiting
     net.stop()
