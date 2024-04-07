@@ -26,7 +26,14 @@ IDLE_PERCENT = .2         #probability of a host remaining idle
 TEST_TIME = 30            #test time in seconds
 IPERF_TIME_TCP = 2
 IPERF_TIME_UDP = 0.2
+HOST_LINK_MAX_BW = 2
+HOST_LINK_MIN_BW = 0.2
+SWITCH_LINK_MAX_BW = 5
+SWITCH_LINK_MIN_BW = 1
+
 folder_path = "captures"  #folder to temporarily store the .pcap captures in 
+
+NUM_BASE_FLOWS = 3 #number of iperf flows in the background
 
 class arbitrary_topology(Topo):
     def build(self, total_switches, max_hosts_per_switch, interconnectivity, seed=0):
@@ -46,7 +53,7 @@ class arbitrary_topology(Topo):
             for j in range(random.randrange(max_hosts_per_switch)):
                 host_dpid = f"h{host_count+1}"
                 self.addHost(host_dpid)
-                self.addLink(switch_dpid, host_dpid)
+                self.addLink(switch_dpid, host_dpid, bw = random.random()*(SWITCH_LINK_MAX_BW-SWITCH_LINK_MIN_BW) + SWITCH_LINK_MIN_BW )
                 host_count +=1
     
 
@@ -66,7 +73,7 @@ class arbitrary_topology(Topo):
 
                 if random.random() < interconnectivity:
                     connected_pairs.add((i, j))  # Add the connected pair to the set
-                    self.addLink(f"s{i}", f"s{j}")
+                    self.addLink(f"s{i}", f"s{j}", bw = random.random()*(HOST_LINK_MAX_BW-HOST_LINK_MIN_BW) + HOST_LINK_MIN_BW)
 
 if __name__ == "__main__":
 
@@ -96,7 +103,17 @@ if __name__ == "__main__":
 
     net.build()     
     net.start()
-
+    ##-----------------------------TESTING--------------------------------------
+    # time.sleep(1)
+    # print("TESSTSTSSTSTT")
+    
+    # print(net.switches)
+    
+    # time.sleep(1)
+    # net.stop()
+    # exit()
+    ##-----------------------------TESTING--------------------------------------
+    
 
     print("\n\n--------------------------------------------------------------------------------")    
     print("Network built, waiting for STP to configure itself\n\n")    
@@ -117,49 +134,41 @@ if __name__ == "__main__":
     print("Begin traffic capturing\n\n")    
     
     #empty folder 
-    Popen(f"rm -rf {folder_path}", shell=True, stdout=DEVNULL, stderr=STDOUT).wait()
+    Popen(f"rm -rf {folder_path}", shell=True, stdout=DEVNULL, stderr=STDOUT).wait()    #delete the folder contents before starting
     os.mkdir(folder_path)   
-    
-    output = check_output(['ifconfig', '-a']).decode('utf-8')
-    
-    pattern = r's[0-9]+-eth[0-9]+'
-    
-    # Find all matching interface names for every switch and port
-    interface_names = re.findall(pattern, output)
-    
-    for i in interface_names:                 #run tcpdump to capture all packets coming from every host
-        Popen([f"tcpdump","-i", i, "-w", f"{folder_path}/{i}_capture.pcap"])
-        
+
+    for s in net.switches:                 #run tcpdump to capture all packets passing through every switch
+        s.cmd(f"tcpdump -w {folder_path}/{s.name}_capture.pcap &")
+
 
     time.sleep(2)
     
     print("\n\n--------------------------------------------------------------------------------")    
     print("Begin traffic generation\n\n")    
     
-    random.seed(0)
+    random.seed(time.time())
+    
+    
+    
+    #Start iperf (TCP and UDP) server on Hosts
+    for h in net.hosts:
+        h.cmd('iperf -s -p    5050 &') #start iperf -Server on -Port 5050
+        h.cmd('iperf -s -u -p 5051 &') #start -UDP server as well
 
-
-    #Start a HTTP server on Host h1
-    http_server = random.choice(net.hosts)
-    http_server.cmd('python2 -m SimpleHTTPServer 80 &')
-
-    #Start iperf (TCP and UDP) server on Random Hosts
-    iperf_TCP_server = random.choice(net.hosts)
-    iperf_TCP_server.cmd('iperf -s -p 5050 &') 
-    
-    iperf_UDP_server = random.choice(net.hosts)
-    iperf_UDP_server.cmd('iperf -s -u -p 5051 &')    
-    
-    
-    actions = [ f"iperf -p 5050 -t {IPERF_TIME_TCP} -c -b 200k {iperf_TCP_server.IP()}",     #iperf server TCP
-                f"iperf -p 5051 -t {IPERF_TIME_UDP} -u -c -b 300k {iperf_UDP_server.IP()}",  #iperf random host UDP 
-                f"wget  http://{http_server.IP()} -O /dev/null",                     #http request
-                f"wget  http://{http_server.IP()}/test.zip -O /dev/null"]            #http download file
-    
-    for h in net.hosts:        
-        action = random.choice(actions)
-        h.cmd(f"while true; {action}; done")
+    for h in random.sample(net.hosts, NUM_BASE_FLOWS):
+        hosts = net.hosts.copy()
+        hosts.remove(h)  #do not pick yourself
+        h.cmd(f"iperf -c -p 5050 {random.choice(hosts)} &")  #start iperf client
+        
+    for h in net.hosts:
+        hosts = net.hosts.copy()
+        hosts.remove(h)  #do not pick yourself
+        host_ips = [h.IP() for h in hosts]
+        h.cmd(f"python3 host_traffic_gen.py {' '.join(map(str, host_ips))} &")
+        
+        
+    print(f"Test traffic started, waiting for test time ({TEST_TIME} seconds)")
     time.sleep(TEST_TIME)
 
-    CLI(net)    #once done open the minent Command Line Interface for testing before exiting
+    
     net.stop()

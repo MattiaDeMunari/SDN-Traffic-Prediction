@@ -15,37 +15,31 @@ data = []
 for file in files:
     print(file)
     packets = PcapReader(folder_path+'/'+file)
-    switch_name=file.split('-')[0]
 
     for packet in packets:
         data.append({
             'ds'    : pd.to_datetime(float(packet.time), unit='s'),
-            'Switch': switch_name,
             'y': len(packet),
         })
-
-
-
-
-df = pd.DataFrame(data)
-
-grouped = df.groupby('Switch')
-
-for name, group in grouped:
-    group = group.sort_values(by='ds')
-    group = group.resample('1S',on='ds').sum(numeric_only=True).fillna(0)       #take the total bandwidth every second for each switch
-    group = group.reset_index()
     
-    print("Fitting model", name)
+    df = pd.DataFrame(data)
+    df = df.resample('.5S',on='ds').sum(numeric_only=True).fillna(0)       #take the total bandwidth every second for each switch
+    df = df.reset_index()
+    
+    
+    print(f"Fitting model for file {file}")
     model = Prophet()
-    model.fit(group)
+    model.fit(df)
     print("Model fit")
-    future = model.make_future_dataframe(periods=3,freq='S',include_history=True) 
-    
+    future = model.make_future_dataframe(periods=5,freq='0.5S',include_history=True) 
     forecast = model.predict(future)
     print(forecast)
     model.plot(forecast)
     plt.show()
+
+
+
+
 
 
 
