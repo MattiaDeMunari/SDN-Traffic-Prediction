@@ -23,7 +23,7 @@ for file in files:
         })
     
     df = pd.DataFrame(data)
-    df = df.resample('.5S',on='ds').sum(numeric_only=True).fillna(0)       #take the total bandwidth every second for each switch
+    df = df.resample('.1S',on='ds').sum(numeric_only=True).fillna(0)       #take the total bandwidth every second for each switch
     df = df.reset_index()
     
     
@@ -31,7 +31,7 @@ for file in files:
     model = Prophet()
     model.fit(df)
     print("Model fit")
-    future = model.make_future_dataframe(periods=5,freq='0.5S',include_history=True) 
+    future = model.make_future_dataframe(periods=5,freq='1S',include_history=True) 
     forecast = model.predict(future)
     print(forecast)
     model.plot(forecast)

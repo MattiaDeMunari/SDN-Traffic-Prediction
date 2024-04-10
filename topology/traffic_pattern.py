@@ -11,14 +11,14 @@ import time
 import re
 import random
 import os
-
+import urllib.parse
 
 # ---------------------------------------------------------------- #
 # -------------------------- Parameters -------------------------- #
 # ---------------------------------------------------------------- #
 
-SWITCHES = 5
-HOSTS = 3
+SWITCHES = 7              #number of switches, literal
+HOSTS = 2                 #max number of hosts PER EACH SWITCH
 CROSS_CONNECTION = .30    #30% chance of having cross connections
 
 
@@ -27,8 +27,8 @@ TEST_TIME = 30            #test time in seconds
 IPERF_TIME_TCP = 2
 IPERF_TIME_UDP = 0.2
 HOST_LINK_MAX_BW = 2
-HOST_LINK_MIN_BW = 0.2
-SWITCH_LINK_MAX_BW = 5
+HOST_LINK_MIN_BW = 1
+SWITCH_LINK_MAX_BW = 2
 SWITCH_LINK_MIN_BW = 1
 
 folder_path = "captures"  #folder to temporarily store the .pcap captures in 
@@ -103,16 +103,28 @@ if __name__ == "__main__":
 
     net.build()     
     net.start()
-    ##-----------------------------TESTING--------------------------------------
-    # time.sleep(1)
-    # print("TESSTSTSSTSTT")
     
-    # print(net.switches)
+    time.sleep(1)
     
-    # time.sleep(1)
-    # net.stop()
-    # exit()
-    ##-----------------------------TESTING--------------------------------------
+    dump = ""
+    for h in net.hosts:
+        dump+=f"<Host {h.name}: "
+        for intf in h.intfList():
+            dump += f"{intf.name}:{intf.IP()}"
+        dump += f" pid={h.pid}>\\n"
+
+    for s in net.switches:
+        dump +=f"<OVSSwitch {s.name}: "
+        dump += ','.join( [f"{intf.name}:{intf.IP()}" for intf in s.intfList()])
+        dump += f" pid={h.pid}>\\n"
+    links = ""
+    # Get information about links
+    for link in net.links:
+        links += f"{link.intf1.name}<->{link.intf2.name} {link.status()}\\n"
+
+    print("\n\n\nVIEW TOPOLOGY GRAPHYCALLY WITH THIS LINK:")
+    url = "http://demo.spear.narmox.com/app/?apiurl=demo#!/mininet?data="+urllib.parse.quote(f'{{"dump":"{dump}","links":"{links}"}}')
+    print(url)
     
 
     print("\n\n--------------------------------------------------------------------------------")    
@@ -139,6 +151,7 @@ if __name__ == "__main__":
 
     for s in net.switches:                 #run tcpdump to capture all packets passing through every switch
         s.cmd(f"tcpdump -w {folder_path}/{s.name}_capture.pcap &")
+        print(f"started capturing on {s}")
 
 
     time.sleep(2)
@@ -153,7 +166,6 @@ if __name__ == "__main__":
     #Start iperf (TCP and UDP) server on Hosts
     for h in net.hosts:
         h.cmd('iperf -s -p    5050 &') #start iperf -Server on -Port 5050
-        h.cmd('iperf -s -u -p 5051 &') #start -UDP server as well
 
     for h in random.sample(net.hosts, NUM_BASE_FLOWS):
         hosts = net.hosts.copy()
