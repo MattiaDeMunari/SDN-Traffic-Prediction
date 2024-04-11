@@ -31,7 +31,7 @@ for file in files:
     model = Prophet()
     model.fit(df)
     print("Model fit")
-    future = model.make_future_dataframe(periods=5,freq='1S',include_history=True) 
+    future = model.make_future_dataframe(periods=200,freq='.1S',include_history=True) 
     forecast = model.predict(future)
     print(forecast)
     model.plot(forecast)

@@ -141,27 +141,12 @@ if __name__ == "__main__":
 
     net.pingAll()
     time.sleep(1)
-    
-    print("\n\n--------------------------------------------------------------------------------")    
-    print("Begin traffic capturing\n\n")    
-    
-    #empty folder 
-    Popen(f"rm -rf {folder_path}", shell=True, stdout=DEVNULL, stderr=STDOUT).wait()    #delete the folder contents before starting
-    os.mkdir(folder_path)   
 
-    for s in net.switches:                 #run tcpdump to capture all packets passing through every switch
-        s.cmd(f"tcpdump -w {folder_path}/{s.name}_capture.pcap &")
-        print(f"started capturing on {s}")
-
-
-    time.sleep(2)
     
     print("\n\n--------------------------------------------------------------------------------")    
     print("Begin traffic generation\n\n")    
     
     random.seed(time.time())
-    
-    
     
     #Start iperf (TCP and UDP) server on Hosts
     for h in net.hosts:
@@ -178,9 +163,28 @@ if __name__ == "__main__":
         host_ips = [h.IP() for h in hosts]
         h.cmd(f"python3 host_traffic_gen.py {' '.join(map(str, host_ips))} &")
         
+    print("waiting 10s ...")
+    time.sleep(10)
         
-    print(f"Test traffic started, waiting for test time ({TEST_TIME} seconds)")
+    print("\n\n--------------------------------------------------------------------------------")    
+    print("Begin traffic capturing\n\n")    
+    
+    #empty folder 
+    Popen(f"rm -rf {folder_path}", shell=True, stdout=DEVNULL, stderr=STDOUT).wait()    #delete the folder contents before starting
+    os.mkdir(folder_path)   
+
+    for s in net.switches:                 #run tcpdump to capture all packets passing through every switch
+        s.cmd(f"tcpdump -w {folder_path}/{s.name}_capture.pcap &")
+        print(f"started capturing on {s}")
+   
+        
+    print(f"\n\nTest traffic started, waiting for test time ({TEST_TIME} seconds)")
     time.sleep(TEST_TIME)
 
+    print("Stopping traffic capture...")
     
+    for s in net.switches:
+        s.cmd('pkill -f "tcpdump"')
+    
+
     net.stop()
