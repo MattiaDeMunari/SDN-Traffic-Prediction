@@ -15,5 +15,5 @@ __pycache__/
 
 *.pcap
 
-#file FlowStats
-FlowStatsfile.csv
+# Log
+wget-log
