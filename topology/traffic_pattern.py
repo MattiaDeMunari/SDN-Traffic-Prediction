@@ -72,7 +72,7 @@ class Topology(Topo):
                         connected_pairs.add((i, j))  # Add the connected pair to the set
                         self.addLink(f"s{i}", f"s{j}", bw = random.random()*(HOST_LINK_MAX_BW-HOST_LINK_MIN_BW) + HOST_LINK_MIN_BW)
     
-    def showing_topology(self):
+    def saving_topology(self):
         G = nx.Graph()
         
         switch_color = 'red'
@@ -177,7 +177,7 @@ if __name__ == "__main__":
     controller = network.connection_controller()
 
     topology = Topology(SWITCHES, HOSTS_PER_SWITCH, CROSS_CONNECTION, 0)
-    topology.showing_topology()
+    topology.saving_topology()
 
     setLogLevel('info')
     net = network.creating_net(topology, controller)
