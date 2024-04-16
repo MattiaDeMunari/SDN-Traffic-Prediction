@@ -134,7 +134,7 @@ class NetworkManager:
             hosts = self.net.hosts.copy()
             hosts.remove(h)  #do not pick yourself
             host_ips = [h.IP() for h in hosts]
-            h.cmd(f"python3 host_traffic_gen.py {' '.join(map(str, host_ips))} &")
+            h.cmd(f"python3 traffic_generation.py {' '.join(map(str, host_ips))} &")
     
     def create_captures_folder(self): 
         Popen(f"rm -rf {folder_captures}", shell=True, stdout=DEVNULL, stderr=STDOUT).wait()    #delete the folder contents before starting
