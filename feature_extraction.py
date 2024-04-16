@@ -1,4 +1,4 @@
-from scapy.all import PcapReader, IP, TCP, UDP, ICMP
+from scapy.all import PcapReader
 import os 
 import pandas as pd
 
@@ -8,12 +8,12 @@ output_csv_path = "train" #not to be confused with the rail transportation vehic
 
 files = os.listdir(folder_path)
 
-data = []
+
 
 for file in files:
     print(file)
     packets = PcapReader(folder_path+'/'+file)
-
+    data = []
     for packet in packets:
         data.append({
             'ds' : pd.to_datetime(float(packet.time), unit='s'),
