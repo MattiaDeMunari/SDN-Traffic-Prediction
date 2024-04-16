@@ -8,7 +8,6 @@ from mininet.log import setLogLevel, info
 from subprocess import *
 
 import time
-import re
 import random
 import os
 import networkx as nx
@@ -20,8 +19,6 @@ TEST_TIME = 30
 folder_captures = "captures" 
 
 #Connection parameters
-IPERF_TIME_TCP = 2
-IPERF_TIME_UDP = 0.2
 NUM_IPERF_FLOWS = 3
 HOST_LINK_MAX_BW = 2
 HOST_LINK_MIN_BW = 1
@@ -104,31 +101,27 @@ class NetworkManager:
     def __init__(self):
         self.net = None
 
-    def cleaning_network(self):
+    def clean_network(self):
         info('*** Clean network instances\n')
         Popen("mn -c", shell=True, stdout=DEVNULL, stderr=STDOUT).wait()
-
-    def connection_controller(self):
-        return RemoteController("c0", ip="0.0.0.0", port=6633) 
     
-    def creating_net(self, topology, controller):
+    def create_net(self, topology):
         self.net = Mininet(                                                
             topo=topology,
             switch=OVSKernelSwitch,
-            build=False,
+            build=False, 
             autoSetMacs=True,
             autoStaticArp=True,
-            link=TCLink,
-            controller=controller
+            link=TCLink
         )
         return self.net
 
-    def checking_stp_configuration(self):
+    def check_stp_configuration(self):
         s1 = self.net.get("s1")   #check he state stp, we wait until s1 says "forward" which indicates it is complete
         while(s1.cmdPrint('ovs-ofctl show s1 | grep -o FORWARD | head -n1') != "FORWARD\r\n"): 
             time.sleep(3)
 
-    def starting_servers(self):    
+    def start_servers(self):    
         for h in self.net.hosts:
             h.cmd('iperf -s -p 5050 &') #start iperf -Server on -Port 5050
 
@@ -143,7 +136,7 @@ class NetworkManager:
             host_ips = [h.IP() for h in hosts]
             h.cmd(f"python3 host_traffic_gen.py {' '.join(map(str, host_ips))} &")
     
-    def creating_folder_captures(self): 
+    def create_captures_folder(self): 
         Popen(f"rm -rf {folder_captures}", shell=True, stdout=DEVNULL, stderr=STDOUT).wait()    #delete the folder contents before starting
         os.mkdir(folder_captures) 
 
@@ -172,22 +165,20 @@ if __name__ == "__main__":
     TEST_TIME = args.time 
 
     network = NetworkManager()
-    network.cleaning_network()
-
-    controller = network.connection_controller()
+    network.clean_network()
 
     topology = Topology(SWITCHES, HOSTS_PER_SWITCH, CROSS_CONNECTION, 0)
     topology.saving_topology()
 
     setLogLevel('info')
-    net = network.creating_net(topology, controller)
+    net = network.create_net(topology)
     
     net.build()     
     net.start()
     time.sleep(1)
     
-    print("\n***Network built, waiting for STP to configure itself")    
-    network.checking_stp_configuration()
+    print("\n*** Network built, waiting for STP to configure itself")    
+    network.check_stp_configuration()
     
     print("\n*** STP ok, waiting 5 seconds...")
     time.sleep(5)
@@ -197,12 +188,12 @@ if __name__ == "__main__":
     time.sleep(1)
 
     print("\n*** Begin traffic generation\n\n")    
-    network.starting_servers()
+    network.start_servers()
     random.seed(time.time())
-    time.sleep(10)
+    time.sleep(5)
         
     print("\n*** Begin traffic capturing\n\n")    
-    network.creating_folder_captures()
+    network.create_captures_folder()
     network.start_switch_tcpdump()
 
     print(f"\n*** Test traffic started, waiting for test time ({TEST_TIME} seconds)")
