@@ -19,7 +19,7 @@ TEST_TIME = 30
 folder_captures = "captures" 
 
 #Connection parameters
-NUM_IPERF_FLOWS = 3
+NUM_IPERF_FLOWS = 0
 HOST_LINK_MAX_BW = 2
 HOST_LINK_MIN_BW = 1
 SWITCH_LINK_MAX_BW = 2
@@ -121,14 +121,15 @@ class NetworkManager:
         while(s1.cmdPrint('ovs-ofctl show s1 | grep -o FORWARD | head -n1') != "FORWARD\r\n"): 
             time.sleep(3)
 
-    def start_servers(self):    
+    def start_servers(self, base_flows):    
+        random.seed(time.time()) #reset random seed
         for h in self.net.hosts:
             h.cmd('iperf -s -p 5050 &') #start iperf -Server on -Port 5050
 
-        for h in random.sample(self.net.hosts, NUM_IPERF_FLOWS):
-            hosts = self.net.hosts.copy()
-            hosts.remove(h)  #do not pick yourself
-            h.cmd(f"iperf -c -p 5050 {random.choice(hosts)} &")  #start iperf client
+        # for h in random.sample(self.net.hosts, base_flows):
+        #     hosts = self.net.hosts.copy()
+        #     hosts.remove(h)  #do not pick yourself
+        #     h.cmd(f"iperf -c -p 5050 {random.choice(hosts)} &")  #start iperf client
             
         for h in self.net.hosts:
             hosts = self.net.hosts.copy()
@@ -140,9 +141,15 @@ class NetworkManager:
         Popen(f"rm -rf {folder_captures}", shell=True, stdout=DEVNULL, stderr=STDOUT).wait()    #delete the folder contents before starting
         os.mkdir(folder_captures) 
 
-    def start_switch_tcpdump(self):
+    def start_switch_tcpdump(self, combine_interfaces):
         for s in self.net.switches: #run tcpdump to capture all packets passing through every switch
-            s.cmd(f"tcpdump -w {folder_captures}/{s.name}_capture.pcap &")
+            if combine_interfaces:
+                s.cmd(f"tcpdump -w {folder_captures}/{s.name}.pcap &")
+            else:
+                for i in s.intfList():
+                    if i.name != 'lo': #avoid loopback address
+                        s.cmd(f"sudo tcpdump -i {i.name} -w {folder_captures}/{i.name}.pcap &")
+                    
             print(f"started capturing on {s}")
         
     def stop_switch_tcpdump(self):
@@ -154,8 +161,10 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Network Testing Script")
     parser.add_argument('--switches', type=int, default=7, help="Number of switches")
     parser.add_argument('--hosts', type=int, default=2, help="Number of hosts per switch")
-    parser.add_argument('--cross-connection', type=float, default=0.30, help="Interconnectivity")
+    parser.add_argument('--cross-connection', type=float, default=0.30, help="Percentage of cross-connections between non-adjacent switches")
     parser.add_argument('--time', type=int, default=30, help="Duration of the test in seconds")
+    parser.add_argument('--base-flows', type=int, default=0, help="Number of constant iperf flows")
+    parser.add_argument('--combine-interfaces', type=bool, default=False, help="Enable to combine all the interfaces of 1 switch into a single .pcap")
     args = parser.parse_args()
 
     #Arguments
@@ -163,7 +172,8 @@ if __name__ == "__main__":
     HOSTS_PER_SWITCH = args.hosts
     CROSS_CONNECTION = args.cross_connection
     TEST_TIME = args.time 
-
+    NUM_IPERF_FLOWS = args.base_flows
+    
     network = NetworkManager()
     network.clean_network()
 
@@ -186,15 +196,17 @@ if __name__ == "__main__":
     print("\n*** Testing ping connectivity...")    
     net.pingAll()
     time.sleep(1)
+    # CLI(net)
+
 
     print("\n*** Begin traffic generation\n\n")    
-    network.start_servers()
+    network.start_servers(NUM_IPERF_FLOWS)
     random.seed(time.time())
     time.sleep(5)
         
     print("\n*** Begin traffic capturing\n\n")    
     network.create_captures_folder()
-    network.start_switch_tcpdump()
+    network.start_switch_tcpdump(args.combine_interfaces)
 
     print(f"\n*** Test traffic started, waiting for test time ({TEST_TIME} seconds)")
     time.sleep(TEST_TIME)

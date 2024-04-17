@@ -3,9 +3,9 @@ import subprocess
 import random
 import time
 
-MAX_RANDOM_FLOW_BW = 1.5
+MAX_RANDOM_FLOW_BW = .5
 MAX_RANDOM_FLOW_DURATION = 2
-MAX_IDLE_TIME = .4 
+MAX_IDLE_TIME = 2
 
 if __name__ == "__main__":
     host_ips = sys.argv[1:]

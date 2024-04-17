@@ -27,14 +27,14 @@ class TrafficPrediction():
     
     def run_arima(self, order, training_split=.8):
         #percentage of the input data to be used as training, the rest will just be testing data           
-        self.training_data = self.df.iloc[:int(training_split*len(self.df))] 
-        model = ARIMA( self.training_data, order=order)
-        fitted_model = model.fit()
-        
-        # print("model fitting done")
-        # print(fitted_model.summary())
+            self.training_data = self.df.iloc[:int(training_split*len(self.df))] 
+            model = ARIMA( self.training_data, order=order)
+            fitted_model = model.fit()
+            
+            # print("model fitting done")
+            # print(fitted_model.summary())
 
-        self.prediction = fitted_model.predict(start=self.df.index.min(),end=self.df.index.max())
+            self.prediction = fitted_model.predict(start=self.df.index.min(),end=self.df.index.max())
             
     def plot(self, title, output_file):
         ax = plt.gca()
@@ -50,7 +50,7 @@ class TrafficPrediction():
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Network traffic prediction script")
     parser.add_argument('--pcap-path', type=str, default="captures", help="Folder containing the .pcap files to use as input")
-    parser.add_argument('--csv', type=str, help="Folder containing the csv files to use as input (will ignore pcap-path and sample-period)")
+    parser.add_argument('--csv', type=str, help="Folder containing the csv files to use as input (will ignore pcap-path, store-csv and sample-period)")
     parser.add_argument('--store-csv', type=str, help="Folder where to store the training data in csv files")
     parser.add_argument('--store-plot', type=str, default="plots", help="Folder where to store the plots")
     parser.add_argument('--training-split', type=float, default=.8, help="Percentage of data used for training")
@@ -58,13 +58,20 @@ if __name__ == "__main__":
     
     args = parser.parse_args()
     
-    if args.csv:
+    if args.csv:    #list all the files based on what kind was decided by the arguents
         path = args.csv
         files = [file  for file in os.listdir(path) if file.endswith('.csv')]
     else:
         path = args.pcap_path
         files = [file  for file in os.listdir(path) if file.endswith('.pcap')]
+        
+        
+    if not os.path.exists(args.store_plot):    #create folder for plots
+        os.mkdir(args.store_plot)
     
+    if args.store_csv and not args.csv and not os.path.exists(args.store_csv):   #create folder for csv only when needed
+        os.mkdir(args.store_csv)
+
     for file in files:
         
         prediction = TrafficPrediction()
@@ -74,14 +81,12 @@ if __name__ == "__main__":
         if args.csv:
             prediction.read_from_csv(full_path)
         else:
-            prediction.feature_extraction(full_path, output_filaname=args.store_csv, sample_period=args.sample_period)
+            prediction.feature_extraction(full_path, output_filaname=os.path.join(args.store_csv,file) if args.store_csv else None, sample_period=args.sample_period)
         
         print("Running ARIMA prediction")
         prediction.run_arima(order=(30,0,0), training_split=args.training_split)
         prediction.plot(file, os.path.join(args.store_plot, file+'.png'))
         
-    args = parser.parse_args()
-    prediction.feature_extraction()
     
 
 

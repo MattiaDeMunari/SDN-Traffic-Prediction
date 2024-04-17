@@ -35,20 +35,23 @@ SDN-Traffic-Prediction
 
 Build and start the topology with Mininet and generate traffic.
 ```bash
- sudo python3 main.py [--switches SWITCHES] [--hosts HOSTS] [--cross-connection CROSS_CONNECTION] [--time TIME] 
+sudo python3 main.py [--switches SWITCHES] [--hosts HOSTS] [--cross-connection CROSS_CONNECTION] [--time TIME] [--combine-interfaces]
 ```
 
 The script allows users to define custom network topologies by specifying the number of switches, hosts per switch, and interconnectivity between switches. These parameters can be adjusted according to the desired testing scenario.
+
+N.B.: Mininet requires this script to be ran as root, therefore sudo is mandatory
 
 Arguments:
 - `--switches`: Number of switches in the network. Default is 7.
 - `--hosts`: Number of hosts per switch. Default is 2.
 - `--cross-connection`: Interconnectivity ratio between switches. Default is 0.30.
 - `--time`: Duration of the test in seconds. Default is 30.
+- `--combine-interfaces`: Whether to combine all the ports for one switch into a single .pcap file. Default is False. 
 
 Example of command that will run the script with 10 switches, 3 hosts per switch, 50% cross-connection, and a test duration of 60 seconds.
 ```bash
- sudo python3 main.py --switches 10 --hosts 3 --cross-connection 0.50 --time 60
+sudo python3 main.py --switches 10 --hosts 3 --cross-connection 0.50 --time 60
 
 ```
 Application flow:
@@ -63,18 +66,18 @@ The script created in order to predict network traffic patterns accepts various 
 
 Start traffic prediction process:  
 ```bash
-sudo python3 traffic_prediction.py [--pcap-path PCAP_PATH] [--csv CSV] [--store-csv STORE_CSV] [--store-plot STORE_PLOT] [--training-split TRAINING_SPLIT] [--sample-period SAMPLE_PERIOD]```
+python3 traffic_prediction.py [--pcap-path PCAP_PATH] [--csv CSV] [--store-csv STORE_CSV] [--store-plot STORE_PLOT] [--training-split TRAINING_SPLIT] [--sample-period SAMPLE_PERIOD]
 ```
 
 Arguments:
 - `--pcap-path`: Path to the folder containing the .pcap files to be used as input. Default is "captures".
-- `--csv`: Path to the folder containing the csv files to be used as input. If provided, this argument will ignore pcap-path and sample-period.
+- `--csv`: Path to the folder containing the csv files to be used as input. *Note: If provided, the program will ignore any pcap files and the `--sample-period` argument will be ignored, as well as `--store-csv` since the csv files are already read from storage.*
 - `--store-csv`: Path to the folder where the training data will be stored in csv files.
 - `--store-plot`: Path to the folder where the plots will be stored. Default is "plots".
 - `--training-split`: Percentage of data used for training. Default is 80%.
-- `--sample-period`: Period over which to combine network data. Default is "0.2S".
+- `--sample-period`: Period over which to combine network data in pandas date-time format. Default is "0.2S"
 
 To run the script with custom parameters:
 ```bash
-python3 traffic_prediction.py --csv data --store-csv training_data --store-plot my_plots --training-split 0.75 --sample-period "0.1S"
+python3 traffic_prediction.py --pcap-path data --store-csv training_data --store-plot my_plots --training-split 0.75 --sample-period "0.1S"
 ```
