@@ -27,14 +27,14 @@ class TrafficPrediction():
     
     def run_arima(self, order, training_split=.8):
         #percentage of the input data to be used as training, the rest will just be testing data           
-            self.training_data = self.df.iloc[:int(training_split*len(self.df))] 
-            model = ARIMA( self.training_data, order=order)
-            fitted_model = model.fit()
-            
-            # print("model fitting done")
-            # print(fitted_model.summary())
+        self.training_data = self.df.iloc[:int(training_split*len(self.df))] 
+        model = ARIMA( self.training_data, order=order)
+        fitted_model = model.fit()
+        
+        # print("model fitting done")
+        # print(fitted_model.summary())
 
-            self.prediction = fitted_model.predict(start=self.df.index.min(),end=self.df.index.max())
+        self.prediction = fitted_model.predict(start=self.df.index.min(),end=self.df.index.max())
             
     def plot(self, title, output_file):
         ax = plt.gca()
@@ -80,10 +80,7 @@ if __name__ == "__main__":
         prediction.run_arima(order=(30,0,0), training_split=args.training_split)
         prediction.plot(file, os.path.join(args.store_plot, file+'.png'))
         
-    
-    
     args = parser.parse_args()
-    
     prediction.feature_extraction()
     
 

@@ -1,5 +1,5 @@
 
-# Networking with Mininet and Ryu: Traffic Prediction in SDN Networks
+# Traffic Prediction in SDN Networks
 
 ## Overview
 
@@ -13,19 +13,68 @@ git clone https://github.com/MattiaDeMunari/SDN-Traffic-Prediction
 ```
 
 ## Requirements
+Mininet and Ryu can be installed following the instructions on this [website](https://www.granelli-lab.org/researches/relevant-projects/comnetsemu-labs). The application require Python 3.
 
-Mininet and Ryu can be installed following the instructions in its  [website](https://www.granelli-lab.org/researches/relevant-projects/comnetsemu-labs). The application require Python 3.
+Install Python3 dependencies using pip:
+```bash
+sudo pip3 install -r requirements.txt
+```
+## Usage
+### Topology and traffic generation
+This repository contains the following structure: 
 
-The required packages can be installed with pip:
-```bash
-pip3 install -r requirements.txt
+SDN-Traffic-Prediction
 ```
-## Execution
-Build the topology and generate traffic:  
-```bash
- sudo python3 main.py
+├── utils
+├── training_data (_auto-generated_) : saved arima training data
+├── plots (_auto-generated_) : saved images prediction plots
+├── captures (_auto-generated_) : saved traffic data captures
+├── main.py
+├── traffic_prediction.py
 ```
+
+Build and start the topology with Mininet and generate traffic.
+```bash
+ sudo python3 main.py [--switches SWITCHES] [--hosts HOSTS] [--cross-connection CROSS_CONNECTION] [--time TIME] 
+```
+
+The script allows users to define custom network topologies by specifying the number of switches, hosts per switch, and interconnectivity between switches. These parameters can be adjusted according to the desired testing scenario.
+
+Arguments:
+- `--switches`: Number of switches in the network. Default is 7.
+- `--hosts`: Number of hosts per switch. Default is 2.
+- `--cross-connection`: Interconnectivity ratio between switches. Default is 0.30.
+- `--time`: Duration of the test in seconds. Default is 30.
+
+Example of command that will run the script with 10 switches, 3 hosts per switch, 50% cross-connection, and a test duration of 60 seconds.
+```bash
+ sudo python3 main.py --switches 10 --hosts 3 --cross-connection 0.50 --time 60
+
+```
+Application flow:
+1. Network creation: building of the specified network topology using Mininet.
+2. STP configuration: waiting for Spanning Tree Protocol (STP) configuration to avoid network loops.
+3. Ping connectivity test: ping connectivity test between all hosts in the network to verify basic network connectivity.
+4. Traffic generation: starting servers on some hosts and clients on others. 
+5. Traffic capture: capture of network traffic passing through the switches using TCPdump for analysis.
+
+### Traffic prediction
+The script created in order to predict network traffic patterns accepts various command-line arguments for flexibility in data input and output customization.
+
 Start traffic prediction process:  
 ```bash
- sudo python3 traffic_prediction.py
+sudo python3 traffic_prediction.py [--pcap-path PCAP_PATH] [--csv CSV] [--store-csv STORE_CSV] [--store-plot STORE_PLOT] [--training-split TRAINING_SPLIT] [--sample-period SAMPLE_PERIOD]```
+```
+
+Arguments:
+- `--pcap-path`: Path to the folder containing the .pcap files to be used as input. Default is "captures".
+- `--csv`: Path to the folder containing the csv files to be used as input. If provided, this argument will ignore pcap-path and sample-period.
+- `--store-csv`: Path to the folder where the training data will be stored in csv files.
+- `--store-plot`: Path to the folder where the plots will be stored. Default is "plots".
+- `--training-split`: Percentage of data used for training. Default is 80%.
+- `--sample-period`: Period over which to combine network data. Default is "0.2S".
+
+To run the script with custom parameters:
+```bash
+python3 traffic_prediction.py --csv data --store-csv training_data --store-plot my_plots --training-split 0.75 --sample-period "0.1S"
 ```
