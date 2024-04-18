@@ -7,15 +7,15 @@ This project aims to analyze traffic patterns and predict traffic within Softwar
 
 ## Objectives
 •	To implement a  random topology using mininet and ryu controller   
-```bash
+
 •	To generate the dataset
-```bash
+
 •	To capture the traffic using RYU or tcpdump
-```bash
+
 •	To apply Prophet Machine learning algorithm to predict traffic in an SDN network
-```bash
+
 •	To improve traffic prediction using a new machine learning algorithm (ARIMA)
-```
+
 
 
 ## Getting Started
