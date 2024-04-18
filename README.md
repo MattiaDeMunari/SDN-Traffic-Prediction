@@ -6,11 +6,16 @@
 This project aims to analyze traffic patterns and predict traffic within Software-Defined Networking (SDN) environments. This involves capturing network traffic using either RYU or tcpdump, followed by training machine learning models to forecast traffic. The performance analysis includes running traffic flows for 30 seconds or more, with 80% of the data used for training and 20% for testing the ML algorithm. As part of the exploration, we will examine the efficacy of Prophet by Meta as a potential tool for this task. This project aims to provide insights into traffic prediction methodologies and their applicability in SDN networks.
 
 ## Objectives
-•	To implement a  random topology using mininet and ryu controller                             
+•	To implement a  random topology using mininet and ryu controller   
+```bash
 •	To generate the dataset
+```bash
 •	To capture the traffic using RYU or tcpdump
+```bash
 •	To apply Prophet Machine learning algorithm to predict traffic in an SDN network
+```bash
 •	To improve traffic prediction using a new machine learning algorithm (ARIMA)
+```
 
 
 ## Getting Started
