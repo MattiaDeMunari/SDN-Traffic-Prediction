@@ -14,7 +14,7 @@ if __name__ == "__main__":
     duration = random.random()*MAX_RANDOM_FLOW_DURATION
     bw = random.random()*MAX_RANDOM_FLOW_BW
     idle_time = random.random()*MAX_IDLE_TIME
-    cmd = f'iperf -t {duration} -c -b {bw}M {host_ip} -u -p 5050'
+    cmd = f'iperf -t {duration} -c {host_ip} -b {bw}M -p 5050'
     while True:
         subprocess.Popen( cmd, shell=True).wait()
         time.sleep(idle_time)

@@ -1,15 +1,19 @@
 import os 
+import math
+import argparse
+
+
 import pandas as pd
 import matplotlib.pyplot as plt 
 from statsmodels.tsa.arima.model import ARIMA
-from scapy.all import PcapReader
-import argparse
 
 class TrafficPrediction():
     
     def read_from_csv(self, filename, sample_period):
-        self.df = pd.read_csv(filename, index_col='ds',parse_dates=True)
-        self.df = self.df.resample(sample_period,on='ds').sum(numeric_only=True).fillna(0) 
+        self.df = pd.read_csv(filename)
+        self.df['ds'] = pd.to_datetime(self.df['ds'], unit='s')   #parse time to a pandas format
+        self.df.set_index('ds', inplace=True)  
+        self.df = self.df.resample(sample_period).sum(numeric_only=True).fillna(0) 
     
     def run_arima(self, order, training_split=.8):
         #percentage of the input data to be used as training, the rest will just be testing data           
@@ -22,15 +26,14 @@ class TrafficPrediction():
 
             self.prediction = fitted_model.predict(start=self.df.index.min(),end=self.df.index.max())
             
-    def plot(self, title, output_file):
-        ax = plt.gca()
-        plt.plot(self.prediction, label="prediction")
-        plt.plot(self.df, label="data")
+    def plot(self, ax):
+        ax.plot(self.prediction, label="prediction")
+        ax.plot(self.df, label="data")
         ax.axvline(x=self.training_data.index.max(), color='red', linestyle='--', label='Training Split')  
-        ax.legend()
-        plt.title(title)
-        plt.savefig(output_file)
-        plt.show()
+        # ax.legend()
+        # plt.title(title)
+        # plt.savefig(output_file)
+        # plt.show()
         
 
 if __name__ == "__main__":
@@ -42,25 +45,43 @@ if __name__ == "__main__":
     
     args = parser.parse_args()
     
-    path = args.csv
-    files = [file  for file in os.listdir(path) if file.endswith('.csv')]
         
     if not os.path.exists(args.store_plot):    #create folder for plots
         os.mkdir(args.store_plot)
+    
+    path = args.csv
+    for switch in os.listdir(path):
+        intf_csv = [file  for file in os.listdir(os.path.join(path,switch)) if file.endswith('.csv')]
+        plot_count = len(intf_csv)
+        
+        # calculate square to best fit all interfaces
+        num_cols = math.ceil(math.sqrt(plot_count)) 
+        num_rows = math.ceil(plot_count / num_cols)
+        
+        fig, axs = plt.subplots(num_rows, num_cols)
+        
+        fig.suptitle(switch)
+        
+        for ax, interface in zip(axs.flatten(), intf_csv):
+                
+            prediction = TrafficPrediction()
+            
+            full_path = os.path.join(path, switch, interface)
+            print(f"Reading file {full_path}")
+            
+            prediction.read_from_csv(full_path, args.sample_period)
+            print("Running ARIMA prediction...")
+            prediction.run_arima(order=(30,0,0), training_split=args.training_split)
+            
+            prediction.plot(ax)
+            ax.set_title(interface)
 
-    for file in files:
         
-        prediction = TrafficPrediction()
+    
+        plt.tight_layout()
+        plt.show()
         
-        full_path = os.path.join(path, file)
-        print(f"Reading file {full_path}")
-        
-        prediction.read_from_csv(full_path, args.sample_period)
-      
-        print("Running ARIMA prediction")
-        prediction.run_arima(order=(30,0,0), training_split=args.training_split)
-        prediction.plot(file, os.path.join(args.store_plot, file+'.png'))
-        
+            
     
 
 

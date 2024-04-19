@@ -10,7 +10,7 @@ from mininet.log import setLogLevel, info
 #installed libraries
 import networkx as nx
 import matplotlib.pyplot as plt
-from scapy.all import AsyncSniffer, get_if_list
+from scapy.all import AsyncSniffer
 
 #default libraries
 import time
@@ -133,12 +133,12 @@ class NetworkManager:
     def start_servers(self, base_flows):    
         random.seed(time.time()) #reset random seed
         for h in self.net.hosts:
-            h.cmd('iperf -s -u -p 5050 &') #start iperf -Server on UDP -Port 5050 
+            h.cmd('iperf -s -p 5050 &') #start iperf -Server on UDP -Port 5050 
 
         for h in random.sample(self.net.hosts, base_flows):
             hosts = self.net.hosts.copy()
             hosts.remove(h)  #do not pick yourself
-            h.cmd(f"iperf -c -u -p 5050 {random.choice(hosts).IP()} &")  #start iperf client
+            h.cmd(f"iperf -c -p 5050 {random.choice(hosts).IP()} &")  #start iperf client
             
         for h in self.net.hosts:
             hosts = self.net.hosts.copy()
@@ -148,6 +148,8 @@ class NetworkManager:
     def create_captures_folder(self): 
         Popen(f"rm -rf {folder_captures}", shell=True, stdout=DEVNULL, stderr=STDOUT).wait()    #delete the folder contents before starting
         os.mkdir(folder_captures) 
+        for s in self.net.switches:
+            os.mkdir(os.path.join(folder_captures, s.name))
 
     def start_traffic_capture(self):
         interface_pattern = re.compile(r's\d+-eth\d+') #find mn interfaces (s1-eth1) etc
@@ -158,7 +160,7 @@ class NetworkManager:
         
         self.sniffers = []
         for i in interfaces:
-            csvfile = open(f"{folder_captures}/{i}.csv", 'w', newline='')
+            csvfile = open(f"{folder_captures}/{i.replace('-','/')}.csv", 'w', newline='')
             writer = csv.writer(csvfile)
             
             print (f" Beginning capture on {i}")
@@ -227,9 +229,8 @@ if __name__ == "__main__":
     print("\n*** Begin traffic capturing\n\n")    
     network.create_captures_folder()
     network.start_traffic_capture()
-    
-    #CLI(net)
-    
+
+
     print(f"\n*** Test traffic started, waiting for test time ({TEST_TIME} seconds)")
     time.sleep(TEST_TIME)
 
