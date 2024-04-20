@@ -20,7 +20,7 @@ import re
 import csv
 import math
 import argparse
-from subprocess import *
+from subprocess import Popen, DEVNULL, STDOUT
 
 #Simulation parameters
 TEST_TIME = 30 
@@ -138,7 +138,7 @@ class NetworkManager:
         for h in random.sample(self.net.hosts, base_flows):
             hosts = self.net.hosts.copy()
             hosts.remove(h)  #do not pick yourself
-            h.cmd(f"iperf -c -p 5050 {random.choice(hosts).IP()} &")  #start iperf client
+            h.cmd(f"iperf -c {random.choice(hosts).IP()} -p 5050 &")  #start iperf client
             
         for h in self.net.hosts:
             hosts = self.net.hosts.copy()
@@ -160,7 +160,9 @@ class NetworkManager:
         
         self.sniffers = []
         for i in interfaces:
-            csvfile = open(f"{folder_captures}/{i.replace('-','/')}.csv", 'w', newline='')
+            # by splitting the interface name we separate the switch from the port and therefore assign the correct folder
+            path = os.path.join(folder_captures, *i.split('-'))
+            csvfile = open(path+'.csv', 'w', newline='')
             writer = csv.writer(csvfile)
             
             print (f" Beginning capture on {i}")
