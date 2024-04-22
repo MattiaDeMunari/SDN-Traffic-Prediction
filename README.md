@@ -64,10 +64,13 @@ Arguments:
 - `--hosts`: Number of hosts per switch. Default is 2.
 - `--cross-connection`: Interconnectivity ratio between switches. Default is 0.30.
 - `--time`: Duration of the test in seconds. Default is 30.
+- `--flows`: Number of periodic iperf flows running on each host. Default is 2.
+- `--base-flows`: Number of continuous iperf flows running on the newtork. Default is 3.
+
 
 Example of command that will run the script with 10 switches, 3 hosts per switch, 50% cross-connection, and a test duration of 60 seconds.
 ```bash
-sudo python3 main.py --switches 10 --hosts 3 --cross-connection 0.50 --time 60
+sudo python3 main.py --switches 10 --hosts 3 --cross-connection 0.50 --time 60 --base-flows 5 --flows 3
 
 ```
 Application flow:

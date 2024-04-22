@@ -28,7 +28,7 @@ class TrafficPrediction():
             
     def plot(self, ax, scale_factor):
         ax.plot(scale_factor * self.prediction, label="prediction") 
-        ax.plot(scale_factor * self.df, label="data")
+        ax.plot(scale_factor * self.df, label="data", linestyle = 'dotted')
         ax.axvline(x=self.training_data.index.max(), color='red', linestyle='--', label='Training Split')  
         
 
@@ -46,7 +46,7 @@ if __name__ == "__main__":
         os.mkdir(args.store_plot)
     
     #used to convert to Mbps
-    scale_factor = 8/(1048576*pd.Timedelta(args.sample_period).total_seconds())
+    scale_factor = 8/(2**20 * pd.Timedelta(args.sample_period).total_seconds())
     
     
     path = args.csv

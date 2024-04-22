@@ -40,10 +40,9 @@ class Topology(Topo):
             self.num_hosts = num_hosts
             self.interconnectivity = interconnectivity
             self.seed = seed
-
-            global host_count
+            
             random.seed(self.seed)
-            host_count = 0 
+            host_count = 1 
             #create all the switces and hosts
             for i in range(self.num_switches):
                 switch_dpid = f"s{i+1}"
@@ -54,7 +53,7 @@ class Topology(Topo):
 
                 #for each switch create and connect all the hosts
                 for j in range(random.randrange(self.num_hosts)):
-                    host_dpid = f"h{host_count+1}"
+                    host_dpid = f"h{host_count}"
                     self.addHost(host_dpid)
                     self.addLink(switch_dpid, host_dpid, bw = random.random()*(HOST_LINK_MAX_BW-HOST_LINK_MIN_BW) + HOST_LINK_MIN_BW)
                     host_count += 1
@@ -110,10 +109,6 @@ class NetworkManager:
     def __init__(self): 
         self.net = None
 
-    def clean_network(self):
-        info('*** Clean network instances\n')
-        Popen("mn -c", shell=True, stdout=DEVNULL, stderr=STDOUT).wait()
-    
     def create_net(self, topology):
         self.net = Mininet(                                                
             topo=topology,
@@ -130,20 +125,21 @@ class NetworkManager:
         while(s1.cmdPrint('ovs-ofctl show s1 | grep -o FORWARD | head -n1') != "FORWARD\r\n"): 
             time.sleep(3)
 
-    def start_servers(self, base_flows):    
+    def start_servers(self, base_flows, flows_per_host):    
         random.seed(time.time()) #reset random seed
         for h in self.net.hosts:
-            h.cmd('iperf -s -p 5050 &') #start iperf -Server on UDP -Port 5050 
+            h.cmd('iperf -s -p 5050 &') #start iperf -Server on TCP -Port 5050 
 
         for h in random.sample(self.net.hosts, base_flows):
             hosts = self.net.hosts.copy()
             hosts.remove(h)  #do not pick yourself
-            h.cmd(f"iperf -c {random.choice(hosts).IP()} -p 5050 &")  #start iperf client
+            h.cmd(f"iperf -t 0 -c {random.choice(hosts).IP()} -p 5050 &")  #start iperf client
             
         for h in self.net.hosts:
             hosts = self.net.hosts.copy()
             hosts.remove(h)  #do not pick yourself
-            h.cmd(f"python3 utils/traffic_generation.py {random.choice(hosts).IP()} &")
+            for host in random.sample(hosts, flows_per_host):
+                h.cmd(f"python3 utils/traffic_generation.py {host.IP()} &")
     
     def create_captures_folder(self): 
         Popen(f"rm -rf {folder_captures}", shell=True, stdout=DEVNULL, stderr=STDOUT).wait()    #delete the folder contents before starting
@@ -190,7 +186,8 @@ if __name__ == "__main__":
     parser.add_argument('--hosts', type=int, default=2, help="Number of hosts per switch")
     parser.add_argument('--cross-connection', type=float, default=0.30, help="Percentage of cross-connections between non-adjacent switches")
     parser.add_argument('--time', type=int, default=30, help="Duration of the test in seconds")
-    parser.add_argument('--base-flows', type=int, default=0, help="Number of constant iperf flows")
+    parser.add_argument('--base-flows', type=int, default=3, help="Number of constant iperf flows")
+    parser.add_argument('--flows', type=int, default=2, help="Number of periodic flows per host")
     args = parser.parse_args()
 
     #Arguments
@@ -199,9 +196,12 @@ if __name__ == "__main__":
     CROSS_CONNECTION = args.cross_connection
     TEST_TIME = args.time 
     NUM_IPERF_FLOWS = args.base_flows
+    FLOWS_PER_HOST = args.flows
     
     network = NetworkManager()
-    network.clean_network()
+    
+    print('*** Clean network instances\n')
+    Popen("mn -c", shell=True, stdout=DEVNULL, stderr=STDOUT).wait()
 
     topology = Topology(SWITCHES, HOSTS_PER_SWITCH, CROSS_CONNECTION, 0)
     topology.saving_topology()
@@ -222,18 +222,17 @@ if __name__ == "__main__":
     print("\n*** Testing ping connectivity...")    
     net.pingAll()
     time.sleep(1)
-    #CLI(net)
+    # CLI(net)
 
-    print("\n*** Begin traffic generation\n\n")    
-    network.start_servers(NUM_IPERF_FLOWS)
+    print("\n*** Begin traffic generation\n")    
+    network.start_servers(NUM_IPERF_FLOWS,FLOWS_PER_HOST)
     time.sleep(2)
         
     print("\n*** Begin traffic capturing\n\n")    
     network.create_captures_folder()
     network.start_traffic_capture()
 
-
-    print(f"\n*** Test traffic started, waiting for test time ({TEST_TIME} seconds)")
+    print(f"\n*** Waiting for test time ({TEST_TIME} seconds)")
     time.sleep(TEST_TIME)
 
     print("\n*** Stopping traffic capture...")
