@@ -11,12 +11,21 @@ class TrafficPrediction():
     
     def read_from_csv(self, filename, sample_period):
         self.df = pd.read_csv(filename)
-        self.df['ds'] = pd.to_datetime(self.df['ds'], unit='s')   #parse time to a pandas format
+        # parse time from unix to pandas format
+        self.df['ds'] = pd.to_datetime(self.df['ds'], unit='s')   
+        
+        # resample
         self.df.set_index('ds', inplace=True)  
         self.df = self.df.resample(sample_period).sum(numeric_only=True).fillna(0) 
+        
+        # convert from bytes to Mbps
+        self.df['y'] /= pd.Timedelta(sample_period).total_seconds()
+        self.df['y'] *= 8 
+        self.df['y'] /= 2**20
+        
     
     def run_arima(self, order, training_split=.8):
-        #percentage of the input data to be used as training, the rest will just be testing data           
+        # percentage of the input data to be used as training, the rest will just be testing data           
         self.training_data = self.df.iloc[:int(training_split*len(self.df))] 
         
         model = ARIMA( self.training_data, order=order)
@@ -26,9 +35,9 @@ class TrafficPrediction():
 
         self.prediction = fitted_model.predict(start=self.df.index.min(),end=self.df.index.max())
             
-    def plot(self, ax, scale_factor):
-        ax.plot(scale_factor * self.prediction, label="prediction") 
-        ax.plot(scale_factor * self.df, label="data", linestyle = 'dotted')
+    def plot(self, ax):
+        ax.plot(self.prediction, label="prediction") 
+        ax.plot(self.df, label="data", linestyle = 'dotted')
         ax.axvline(x=self.training_data.index.max(), color='red', linestyle='--', label='Training Split')  
         
 
@@ -44,9 +53,6 @@ if __name__ == "__main__":
         
     if not os.path.exists(args.store_plot):    #create folder for plots
         os.mkdir(args.store_plot)
-    
-    #used to convert to Mbps
-    scale_factor = 8/(2**20 * pd.Timedelta(args.sample_period).total_seconds())
     
     
     path = args.csv
@@ -79,7 +85,7 @@ if __name__ == "__main__":
             print("Running ARIMA prediction...")
             prediction.run_arima(order=(30,0,0), training_split=args.training_split)
             
-            prediction.plot(ax, scale_factor)
+            prediction.plot(ax)
             ax.set_title(interface[:-4]) # remove ".csv" from the plot name
 
         #disable all unused plots
