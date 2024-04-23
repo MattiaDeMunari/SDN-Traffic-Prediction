@@ -53,13 +53,13 @@ if __name__ == "__main__":
     for switch in os.listdir(path):
         intf_csv = [file  for file in os.listdir(os.path.join(path,switch)) if file.endswith('.csv')]
         
-        # calculate square to best fit all interfaces
         plot_count = len(intf_csv)
         
         if plot_count == 0:
             print(f"No .csv file found in {switch} folder")
             continue
-        
+
+        # calculate square to best fit all interfaces
         num_cols = math.ceil(math.sqrt(plot_count)) 
         num_rows = math.ceil(plot_count / num_cols)
         

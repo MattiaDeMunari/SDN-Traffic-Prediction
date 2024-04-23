@@ -23,11 +23,9 @@ import argparse
 from subprocess import Popen, DEVNULL, STDOUT
 
 #Simulation parameters
-TEST_TIME = 30 
 folder_captures = "captures" 
 
 #Connection parameters
-NUM_IPERF_FLOWS = 0
 HOST_LINK_MAX_BW = 2
 HOST_LINK_MIN_BW = 1
 SWITCH_LINK_MAX_BW = 2
