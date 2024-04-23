@@ -133,13 +133,16 @@ class NetworkManager:
         for h in random.sample(self.net.hosts, base_flows):
             hosts = self.net.hosts.copy()
             hosts.remove(h)  #do not pick yourself
-            h.cmd(f"iperf -t 0 -c {random.choice(hosts).IP()} -p 5050 &")  #start iperf client
+            host = random.choice(hosts)
+            h.cmd(f"iperf -t 0 -c {host.IP()} -p 5050 &")  #start iperf client
+            print(f"Continuous flow started from {h.name} to {host.name}")
             
         for h in self.net.hosts:
             hosts = self.net.hosts.copy()
             hosts.remove(h)  #do not pick yourself
             for host in random.sample(hosts, flows_per_host):
                 h.cmd(f"python3 utils/traffic_generation.py {host.IP()} &")
+                print(f"Periodic flow started from {h.name} to {host.name}")
     
     def create_captures_folder(self): 
         Popen(f"rm -rf {folder_captures}", shell=True, stdout=DEVNULL, stderr=STDOUT).wait()    #delete the folder contents before starting
