@@ -20,7 +20,6 @@ import re
 import csv
 import math
 import argparse
-from subprocess import Popen, DEVNULL, STDOUT
 
 #Simulation parameters
 folder_captures = "captures" 
@@ -143,7 +142,7 @@ class NetworkManager:
                 print(f"Periodic flow started from {h.name} to {host.name}")
     
     def create_captures_folder(self): 
-        Popen(f"rm -rf {folder_captures}", shell=True, stdout=DEVNULL, stderr=STDOUT).wait()    #delete the folder contents before starting
+        os.system(f"rm -rf {folder_captures}")    #delete the folder contents before starting
         os.mkdir(folder_captures) 
         for s in self.net.switches:
             os.mkdir(os.path.join(folder_captures, s.name))
@@ -202,7 +201,7 @@ if __name__ == "__main__":
     network = NetworkManager()
     
     print('*** Clean network instances\n')
-    Popen("mn -c", shell=True, stdout=DEVNULL, stderr=STDOUT).wait()
+    os.system("mn -c")
 
     topology = Topology(SWITCHES, HOSTS_PER_SWITCH, CROSS_CONNECTION, 0)
     topology.saving_topology()
