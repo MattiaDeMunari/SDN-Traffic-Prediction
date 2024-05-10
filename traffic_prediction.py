@@ -3,6 +3,7 @@ import math
 import argparse
 
 
+import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt 
 from statsmodels.tsa.arima.model import ARIMA
@@ -61,10 +62,10 @@ if __name__ == "__main__":
         
         plot_count = len(intf_csv)
         
-        if plot_count == 0:
-            print(f"No .csv file found in {switch} folder")
-            continue
-
+        if plot_count <= 1:
+            print(f"No connections on switch {switch}, skipping")
+            continue 
+        
         # calculate square to best fit all interfaces
         num_cols = math.ceil(math.sqrt(plot_count)) 
         num_rows = math.ceil(plot_count / num_cols)

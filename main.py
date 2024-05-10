@@ -154,24 +154,26 @@ class NetworkManager:
             print(f"ERROR: could not find any mininet network adapters for some reason, quitting")
             exit(1)
         
-        self.sniffers = []
-        for i in interfaces:
-            # by splitting the interface name we separate the switch from the port and therefore assign the correct folder
-            path = os.path.join(folder_captures, *i.split('-'))
+        def start_sniffer(iface, path):
             csvfile = open(path+'.csv', 'w', newline='')
-            writer = csv.writer(csvfile)
-            
+            writer = csv.writer(csvfile,)
             print (f" Beginning capture on {i}")
             
             writer.writerow(['ds', 'y'])
-            def handler(pkt, writer):
+            
+            def handler(pkt):
                 writer.writerow([pkt.time, len(pkt)])
                 
-            packet_handler = lambda pkt, writer=writer: handler(pkt,writer)
-            sniffer = AsyncSniffer(iface=i, store=False, prn=packet_handler)
-            
+            sniffer = AsyncSniffer(iface=iface, store=False, prn=handler)
             sniffer.start()
-            self.sniffers.append((sniffer,csvfile))
+            return sniffer, csvfile
+            
+        self.sniffers = []
+        
+        for i in interfaces:
+            # by splitting the interface name we separate the switch from the port and therefore assign the correct folder
+            path = os.path.join(folder_captures, *i.split('-'))
+            self.sniffers.append(start_sniffer(i, path))
     
         
     def stop_traffic_capture(self):
@@ -187,7 +189,7 @@ if __name__ == "__main__":
     parser.add_argument('--cross-connection', type=float, default=0.30, help="Percentage of cross-connections between non-adjacent switches")
     parser.add_argument('--time', type=int, default=30, help="Duration of the test in seconds")
     parser.add_argument('--base-flows', type=int, default=3, help="Number of constant iperf flows")
-    parser.add_argument('--flows', type=int, default=2, help="Number of periodic flows per host")
+    parser.add_argument('--flows', type=int, default=1, help="Number of periodic flows per host")
     args = parser.parse_args()
 
     #Arguments
